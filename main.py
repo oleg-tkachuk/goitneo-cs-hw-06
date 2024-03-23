@@ -1,21 +1,28 @@
+import os
+import sys
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+utils_subdir_path = os.path.join(current_dir, 'utils')
+sys.path.append(utils_subdir_path)
+
 try:
-    import json
     import socket
-    import logging
     import mimetypes
     from pathlib import Path
     from threading import Thread
+    from dotenv import load_dotenv
     from pymongo.server_api import ServerApi
     from pymongo.mongo_client import MongoClient
     from urllib.parse import urlparse, unquote_plus
     from http.server import HTTPServer, BaseHTTPRequestHandler
+    from utils.logger import logger_http, logger_socket, logger_mongo
 except ModuleNotFoundError as e:
-    print(f"Error: {e}")
+    print(f"Import error in the main module: {e}")
     exit(1)
 
 
 # MongoDB settings
-MONGO_URI = 'mongodb://localhost:27017'
+MONGO_URI = 'mongodb://127.0.0.1:27017'
 MONGO_SERVER_API_VERSION = '1'
 MONGO_DATABASE_NAME = 'cs-homework-06'
 MONGO_COLLECTION_NAME = 'posts'
@@ -139,29 +146,6 @@ def run_socket_server():
 
 
 if __name__ == '__main__':
-    # Logging settings
-    common_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-    # Logger for Socket server
-    logger_socket = logging.getLogger('socket server')
-    logger_socket.setLevel(logging.INFO)
-    handler_socket = logging.StreamHandler()
-    handler_socket.setFormatter(common_formatter)
-    logger_socket.addHandler(handler_socket)
-
-    # Logger for HTTP server
-    logger_http = logging.getLogger('http server')
-    logger_http.setLevel(logging.INFO)
-    handler_http = logging.StreamHandler()
-    handler_http.setFormatter(common_formatter)
-    logger_http.addHandler(handler_http)
-
-    # Logger for MongoDB client
-    logger_mongo = logging.getLogger('mongodb client')
-    logger_mongo.setLevel(logging.INFO)
-    handler_mongo = logging.StreamHandler()
-    handler_mongo.setFormatter(common_formatter)
-    logger_mongo.addHandler(handler_mongo)
 
     # Run HTTP server thread
     http_thread = Thread(target=run_http_server, name='http server')
