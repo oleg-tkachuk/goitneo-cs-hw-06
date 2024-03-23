@@ -1,18 +1,24 @@
-import json
-import socket
-import logging
-import mimetypes
-from pathlib import Path
-from threading import Thread
-from pymongo.server_api import ServerApi
-from pymongo.mongo_client import MongoClient
-from urllib.parse import urlparse, unquote_plus
-from http.server import HTTPServer, BaseHTTPRequestHandler
+try:
+    import json
+    import socket
+    import logging
+    import mimetypes
+    from pathlib import Path
+    from threading import Thread
+    from pymongo.server_api import ServerApi
+    from pymongo.mongo_client import MongoClient
+    from urllib.parse import urlparse, unquote_plus
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+except ModuleNotFoundError as e:
+    print(f"Error: {e}")
+    exit(1)
 
 
 # MongoDB settings
 MONGO_URI = 'mongodb://localhost:27017'
-MONGO_DATABASE_NAME = 'messages'
+MONGO_SERVER_API_VERSION = '1'
+MONGO_DATABASE_NAME = 'cs-homework-06'
+MONGO_COLLECTION_NAME = 'posts'
 
 # HTTP server settings
 HTTP_HOST = 'localhost'
@@ -23,7 +29,7 @@ BASE_DIR = Path(__file__).parent
 # Socket server settings
 SOCKET_HOST = 'localhost'
 SOCKET_PORT = 5000
-BUFFER_SIZE = 1024
+SOCKET_BUFFER_SIZE = 1024
 
 class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -47,11 +53,9 @@ class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
         size = self.headers.get('Content-Length')
         data = self.rfile.read(int(size)).decode()
 
-        #client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         client_socket.sendto(data.encode(), (SOCKET_HOST, SOCKET_PORT))
         client_socket.close()
-        #print(unquote_plus(data))
 
         self.send_response(302)
         self.send_header('Location', '/')
@@ -76,11 +80,32 @@ class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(f.read())
 
 
-def save_data_to_mongo(data):
-    client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
-    db = client.get_database(MONGO_DATABASE_NAME)
-    posts = db.posts
-    posts.insert_one(json.loads(data))
+def insert_data_into_mongo(data, mongo_uri=MONGO_URI,
+                           mongo_server_api_version=MONGO_SERVER_API_VERSION,
+                           mongo_db_name=MONGO_DATABASE_NAME,
+                           mongo_collection_name=MONGO_COLLECTION_NAME):
+
+    client = MongoClient(mongo_uri, server_api=ServerApi(mongo_server_api_version))
+    db = client.get_database(mongo_db_name)
+    collection = db.get_collection(mongo_collection_name)
+
+    parse_data = unquote_plus(data)
+
+    try:
+        parse_data = {key: value for key, value in
+                      [item.split('=') for item in parse_data.split('&')]}
+        logger_mongo.error(parse_data)
+        if isinstance(parse_data, list):
+            result = collection.insert_many(parse_data)
+        else:
+            result = collection.insert_one(json.loads(parse_data))
+        return result
+    except ValueError as e:
+        logger_mongo.error(f'Parse error: {e}')
+    except Exception as e:
+        logger_mongo.error(f'Failed to insert: {e}')
+    finally:
+        client.close()
 
 
 def run_http_server(server_class=HTTPServer,
@@ -104,9 +129,9 @@ def run_socket_server():
         sock.bind((SOCKET_HOST, SOCKET_PORT))
         try:
             while True:
-                data, addr = sock.recvfrom(BUFFER_SIZE)
+                data, addr = sock.recvfrom(SOCKET_BUFFER_SIZE)
                 logger_socket.info(f'Received from {addr}: {data.decode()}')
-                save_data_to_mongo(data.decode())
+                insert_data_into_mongo(data.decode())
         except Exception as e:
             logger_socket.error(f'Server error: {e}')
         finally:
@@ -115,23 +140,35 @@ def run_socket_server():
 
 
 if __name__ == '__main__':
+    # Logging settings
     common_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
+    # Logger for Socket server
     logger_socket = logging.getLogger('socket server')
     logger_socket.setLevel(logging.INFO)
     handler_socket = logging.StreamHandler()
     handler_socket.setFormatter(common_formatter)
     logger_socket.addHandler(handler_socket)
 
+    # Logger for HTTP server
     logger_http = logging.getLogger('http server')
     logger_http.setLevel(logging.INFO)
     handler_http = logging.StreamHandler()
     handler_http.setFormatter(common_formatter)
     logger_http.addHandler(handler_http)
 
+    # Logger for MongoDB client
+    logger_mongo = logging.getLogger('mongodb client')
+    logger_mongo.setLevel(logging.INFO)
+    handler_mongo = logging.StreamHandler()
+    handler_mongo.setFormatter(common_formatter)
+    logger_mongo.addHandler(handler_mongo)
+
+    # Run HTTP server thread
     http_thread = Thread(target=run_http_server, name='http server')
     http_thread.start()
 
+    # Run Socket server thread
     socket_thread = Thread(target=run_socket_server, name='socket server')
     socket_thread.start()
 
