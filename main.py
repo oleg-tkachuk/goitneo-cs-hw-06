@@ -14,6 +14,7 @@ try:
     from urllib.parse import urlparse
     from http.server import HTTPServer, BaseHTTPRequestHandler
     from modules.cli import cli
+    from modules.parser import parse_data
     from modules.mongo import insert_data_into_mongo
     from modules.logger import logger_http, logger_socket
 except ModuleNotFoundError as e:
@@ -115,7 +116,7 @@ def run_socket_server(socket_server_params, mongo_client_params):
             while True:
                 data, addr = sock.recvfrom(socket_buffer_size)
                 logger_socket.info(f'Received from {addr}: {data.decode()}')
-                insert_data_into_mongo(data, mongo_client_params)
+                insert_data_into_mongo(parse_data(data), mongo_client_params)
         except Exception as e:
             logger_socket.error(f'Server error: {e}')
         finally:
@@ -154,14 +155,17 @@ def main():
         'collection_name': os.getenv('MONGO_COLLECTION_NAME'),
         'server_api_version': os.getenv('MONGO_SERVER_API_VERSION', '1')
     }
-    #uri = f"mongodb://{username}:{password}@{hostname}:{port}/?authSource={auth_source}"
 
     # Run HTTP server thread
-    http_thread = Thread(target=run_http_server, kwargs=http_server_params, name='http server')
+    http_thread = Thread(target=run_http_server, 
+                         kwargs=http_server_params,
+                         name='http server')
     http_thread.start()
 
     # Run Socket server thread
-    socket_thread = Thread(target=run_socket_server, args=(socket_server_params, mongo_client_params), name='socket server')
+    socket_thread = Thread(target=run_socket_server,
+                           args=(socket_server_params, mongo_client_params), 
+                           name='socket server')
     socket_thread.start()
 
 
