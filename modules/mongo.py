@@ -17,9 +17,10 @@ def insert_data_into_mongo(data, mongo_client_params):
     db_name = mongo_client_params.get('db_name')
     collection_name = mongo_client_params.get('collection_name')
     server_api_version = mongo_client_params.get('server_api_version')
-
+    uri = f"mongodb://{username}:{password}@{hostname}:{port}/?authSource={auth_source}"
+    uri_to_log = f"mongodb://{username}:<password_hidden>@{hostname}:{port}/?authSource={auth_source}"
     try:
-        uri = f"mongodb://{username}:{password}@{hostname}:{port}/?authSource={auth_source}"
+        logger_mongo.info(f"Connecting to MongoDB: {uri_to_log}, server API version: {server_api_version}")
         client = MongoClient(uri, server_api=ServerApi(server_api_version))
 
         db = client.get_database(db_name)
