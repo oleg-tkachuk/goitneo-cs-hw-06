@@ -89,16 +89,15 @@ def insert_data_into_mongo(data, mongo_uri=MONGO_URI,
     db = client.get_database(mongo_db_name)
     collection = db.get_collection(mongo_collection_name)
 
-    parse_data = unquote_plus(data)
+    parse_data = unquote_plus(data.decode())
 
     try:
         parse_data = {key: value for key, value in
                       [item.split('=') for item in parse_data.split('&')]}
-        logger_mongo.error(parse_data)
         if isinstance(parse_data, list):
             result = collection.insert_many(parse_data)
         else:
-            result = collection.insert_one(json.loads(parse_data))
+            result = collection.insert_one(parse_data)
         return result
     except ValueError as e:
         logger_mongo.error(f'Parse error: {e}')
@@ -131,7 +130,7 @@ def run_socket_server():
             while True:
                 data, addr = sock.recvfrom(SOCKET_BUFFER_SIZE)
                 logger_socket.info(f'Received from {addr}: {data.decode()}')
-                insert_data_into_mongo(data.decode())
+                insert_data_into_mongo(data)
         except Exception as e:
             logger_socket.error(f'Server error: {e}')
         finally:
