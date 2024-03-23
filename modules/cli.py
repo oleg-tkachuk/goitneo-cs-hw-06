@@ -1,7 +1,7 @@
 try:
     import argparse
 except ModuleNotFoundError as e:
-    print(f"Import error in the utils module: {e}")
+    print(f"Import error in the cli module: {e}")
     exit(1)
 
 

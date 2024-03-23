@@ -2,7 +2,7 @@ import os
 import sys
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-utils_subdir_path = os.path.join(current_dir, 'utils')
+utils_subdir_path = os.path.join(current_dir, 'modules')
 sys.path.append(utils_subdir_path)
 
 try:
@@ -11,11 +11,11 @@ try:
     from pathlib import Path
     from threading import Thread
     from dotenv import load_dotenv
-    from pymongo.server_api import ServerApi
-    from pymongo.mongo_client import MongoClient
-    from urllib.parse import urlparse, unquote_plus
+    from urllib.parse import urlparse
     from http.server import HTTPServer, BaseHTTPRequestHandler
-    from utils.logger import logger_http, logger_socket, logger_mongo
+    from modules.cli import cli
+    from modules.mongo import insert_data_into_mongo
+    from modules.logger import logger_http, logger_socket
 except ModuleNotFoundError as e:
     print(f"Import error in the main module: {e}")
     exit(1)
@@ -87,36 +87,10 @@ class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(f.read())
 
 
-def insert_data_into_mongo(data, mongo_uri=MONGO_URI,
-                           mongo_server_api_version=MONGO_SERVER_API_VERSION,
-                           mongo_db_name=MONGO_DATABASE_NAME,
-                           mongo_collection_name=MONGO_COLLECTION_NAME):
-
-    client = MongoClient(mongo_uri, server_api=ServerApi(mongo_server_api_version))
-    db = client.get_database(mongo_db_name)
-    collection = db.get_collection(mongo_collection_name)
-
-    parse_data = unquote_plus(data.decode())
-
-    try:
-        parse_data = {key: value for key, value in
-                      [item.split('=') for item in parse_data.split('&')]}
-        if isinstance(parse_data, list):
-            result = collection.insert_many(parse_data)
-        else:
-            result = collection.insert_one(parse_data)
-        return result
-    except ValueError as e:
-        logger_mongo.error(f'Parse error: {e}')
-    except Exception as e:
-        logger_mongo.error(f'Failed to insert: {e}')
-    finally:
-        client.close()
-
-
-def run_http_server(server_class=HTTPServer,
-               handler_class=DemoHTTPRequestHandler,
-               server_address=(HTTP_HOST, HTTP_PORT)):
+def run_http_server(**kwargs):
+    server_class = kwargs.get('server_class', HTTPServer)
+    handler_class = kwargs.get('handler_class', DemoHTTPRequestHandler)
+    server_address = kwargs.get('server_address', ('localhost', 3000))
 
     httpd = server_class(server_address, handler_class)
     try:
@@ -129,13 +103,17 @@ def run_http_server(server_class=HTTPServer,
         httpd.server_close()
 
 
-def run_socket_server():
-    logger_socket.info(f'Server running on socket://{SOCKET_HOST}:{SOCKET_PORT}')
+def run_socket_server(**kwargs):
+    socket_host = kwargs.get('socket_host', 'localhost')
+    socket_port = kwargs.get('socket_port', 5000)
+    socket_buffer_size = kwargs.get('socket_buffer_size', 1024)
+
+    logger_socket.info(f'Server running on socket://{socket_host}:{socket_port}')
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-        sock.bind((SOCKET_HOST, SOCKET_PORT))
+        sock.bind((socket_host, socket_port))
         try:
             while True:
-                data, addr = sock.recvfrom(SOCKET_BUFFER_SIZE)
+                data, addr = sock.recvfrom(socket_buffer_size)
                 logger_socket.info(f'Received from {addr}: {data.decode()}')
                 insert_data_into_mongo(data)
         except Exception as e:
@@ -145,13 +123,49 @@ def run_socket_server():
             sock.close()
 
 
-if __name__ == '__main__':
+def main():
+    args = cli()
+
+    load_dotenv(dotenv_path=args.dotenv)
+
+    # HTTP server settings
+    http_server_params = {
+        'server_class': HTTPServer,
+        'handler_class': DemoHTTPRequestHandler,
+        'server_address': (os.getenv('HTTP_HOST', 'localhost'),
+                           int(os.getenv('HTTP_PORT', 3000)))
+    }
+
+    # Socket server settings
+    socket_server_params = {
+        'socket_host': os.getenv('SOCKET_HOST', 'localhost'),
+        'socket_port': int(os.getenv('SOCKET_PORT', 5000)),
+        'socket_buffer_size': int(os.getenv('SOCKET_BUFFER_SIZE', 1024))
+    }
+
+    # Mongo client settings
+    mongo_client_params = {
+        'username': os.getenv('MONGO_INITDB_ROOT_USERNAME', 'root'),
+        'password': os.getenv('MONGO_INITDB_ROOT_PASSWORD'),
+        'hostname': os.getenv('MONGO_HOST', 'localhost'),
+        'port': os.getenv('MONGO_PORT', 27017),
+        'auth_source': os.getenv('MONGO_AUTH_SOURCE', 'admin'),
+        'db_name': os.getenv('MONGO_DATABASE_NAME'),
+        'collection_name': os.getenv('MONGO_COLLECTION_NAME'),
+        'server_api_version': os.getenv('MONGO_SERVER_API_VERSION', '1')
+    }
+    #uri = f"mongodb://{username}:{password}@{hostname}:{port}/?authSource={auth_source}"
 
     # Run HTTP server thread
-    http_thread = Thread(target=run_http_server, name='http server')
+    http_thread = Thread(target=run_http_server, kwargs=http_server_params, name='http server')
     http_thread.start()
 
     # Run Socket server thread
-    socket_thread = Thread(target=run_socket_server, name='socket server')
+    socket_thread = Thread(target=run_socket_server, kwargs=socket_server_params, name='socket server')
     socket_thread.start()
+
+
+if __name__ == '__main__':
+    main()
+
 
