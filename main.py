@@ -89,33 +89,45 @@ def run_http_server(server_class=HTTPServer,
 
     httpd = server_class(server_address, handler_class)
     try:
-        logging.info(f'Server running on {server_address[0]}:{server_address[1]}')
+        logger_http.info(f'Server running on {server_address[0]}:{server_address[1]}')
         httpd.serve_forever()
     except Exception as e:
-        logging.error(f'Server error: {e}')
+        logger_http.error(f'Server error: {e}')
     finally:
-        logging.info('Server stopped')
+        logger_http.info('Server stopped')
         httpd.server_close()
 
 
 def run_socket_server():
-    logging.info(f'Server running on socket://{SOCKET_HOST}:{SOCKET_PORT}')
+    logger_socket.info(f'Server running on socket://{SOCKET_HOST}:{SOCKET_PORT}')
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.bind((SOCKET_HOST, SOCKET_PORT))
         try:
             while True:
                 data, addr = sock.recvfrom(BUFFER_SIZE)
-                logging.info(f'Received from {addr}: {data.decode()}')
-                save_data_to_mongo()
+                logger_socket.info(f'Received from {addr}: {data.decode()}')
+                save_data_to_mongo(data.decode())
         except Exception as e:
-            logging.error(f'Server error: {e}')
+            logger_socket.error(f'Server error: {e}')
         finally:
-            logging.info('Server stopped')
+            logger_socket.info('Server stopped')
             sock.close()
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    common_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    logger_socket = logging.getLogger('socket server')
+    logger_socket.setLevel(logging.INFO)
+    handler_socket = logging.StreamHandler()
+    handler_socket.setFormatter(common_formatter)
+    logger_socket.addHandler(handler_socket)
+
+    logger_http = logging.getLogger('http server')
+    logger_http.setLevel(logging.INFO)
+    handler_http = logging.StreamHandler()
+    handler_http.setFormatter(common_formatter)
+    logger_http.addHandler(handler_http)
 
     http_thread = Thread(target=run_http_server, name='http server')
     http_thread.start()
