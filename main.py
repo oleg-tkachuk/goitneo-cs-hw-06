@@ -1,11 +1,23 @@
+import json
+import socket
+import logging
 import mimetypes
 from pathlib import Path
 from urllib.parse import urlparse, unquote_plus
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from threading import Thread
 
 
+# HTTP server settings
+HTTP_HOST = 'localhost'
+HTTP_PORT = 3000
+# HTTP server base directory
 BASE_DIR = Path(__file__).parent
 
+# Socket server settings
+SOCKET_HOST = 'localhost'
+SOCKET_PORT = 5000
+BUFFER_SIZE = 1024
 
 class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -29,10 +41,15 @@ class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
         size = self.headers.get('Content-Length')
         data = self.rfile.read(int(size)).decode()
 
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html')
+        #client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        client_socket.sendto(data.encode(), (SOCKET_HOST, SOCKET_PORT))
+        client_socket.close()
+        #print(unquote_plus(data))
+
+        self.send_response(302)
+        self.send_header('Location', '/')
         self.end_headers()
-        self.wfile.write(b'Hello, World!')
 
     def send_html(self, file_path, status=200):
         self.send_response(status)
@@ -53,18 +70,44 @@ class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(f.read())
 
 
-def run_server(server_class=HTTPServer,
+def run_http_server(server_class=HTTPServer,
                handler_class=DemoHTTPRequestHandler,
-               server_address=('localhost', 3000)):
+               server_address=(HTTP_HOST, HTTP_PORT)):
 
     httpd = server_class(server_address, handler_class)
     try:
-        print(f'Server running on {server_address[0]}:{server_address[1]}')
+        print(f'HTTP server running on {server_address[0]}:{server_address[1]}')
         httpd.serve_forever()
-    except KeyboardInterrupt:
+    except Exception as e:
+        logging.error(f'Server error: {e}')
+    finally:
+        logging.info('Server stopped')
         httpd.server_close()
-        print('Server stopped')
+
+
+def run_socket_server():
+    print(f'Socket server running on {SOCKET_HOST}:{SOCKET_PORT}')
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((SOCKET_HOST, SOCKET_PORT))
+        s.listen()
+        while True:
+            conn, addr = s.accept()
+            with conn:
+                print(f'Connected by {addr}')
+                while True:
+                    data = conn.recv(BUFFER_SIZE)
+                    if not data:
+                        break
+                    print(data.decode())
+                    conn.sendall(data)
 
 
 if __name__ == '__main__':
-    run_server()
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+    http_thread = Thread(target=run_http_server, name='http server')
+    http_thread.start()
+
+    socket_thread = Thread(target=run_socket_server, name='socket server')
+    socket_thread.start()
+
