@@ -89,7 +89,7 @@ def run_http_server(server_class=HTTPServer,
 
     httpd = server_class(server_address, handler_class)
     try:
-        print(f'HTTP server running on {server_address[0]}:{server_address[1]}')
+        logging.info(f'Server running on {server_address[0]}:{server_address[1]}')
         httpd.serve_forever()
     except Exception as e:
         logging.error(f'Server error: {e}')
@@ -99,10 +99,9 @@ def run_http_server(server_class=HTTPServer,
 
 
 def run_socket_server():
-    print(f'Socket server running on {SOCKET_HOST}:{SOCKET_PORT}')
+    logging.info(f'Server running on socket://{SOCKET_HOST}:{SOCKET_PORT}')
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.bind((SOCKET_HOST, SOCKET_PORT))
-        sock.listen()
         try:
             while True:
                 data, addr = sock.recvfrom(BUFFER_SIZE)
