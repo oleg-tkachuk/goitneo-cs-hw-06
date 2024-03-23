@@ -125,8 +125,7 @@ def run_socket_server(socket_server_params, mongo_client_params):
 
 
 def main():
-    args = cli()
-
+    args = cli(BASE_DIR)
     load_dotenv(dotenv_path=args.dotenv)
 
     # HTTP server settings
