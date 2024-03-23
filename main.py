@@ -90,7 +90,7 @@ class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
 def run_http_server(**kwargs):
     server_class = kwargs.get('server_class', HTTPServer)
     handler_class = kwargs.get('handler_class', DemoHTTPRequestHandler)
-    server_address = kwargs.get('server_address', ('localhost', 3000))
+    server_address = kwargs.get('server_address')
 
     httpd = server_class(server_address, handler_class)
     try:
@@ -103,10 +103,10 @@ def run_http_server(**kwargs):
         httpd.server_close()
 
 
-def run_socket_server(**kwargs):
-    socket_host = kwargs.get('socket_host', 'localhost')
-    socket_port = kwargs.get('socket_port', 5000)
-    socket_buffer_size = kwargs.get('socket_buffer_size', 1024)
+def run_socket_server(socket_server_params, mongo_client_params):
+    socket_host = socket_server_params.get('socket_host')
+    socket_port = socket_server_params.get('socket_port')
+    socket_buffer_size = socket_server_params.get('socket_buffer_size')
 
     logger_socket.info(f'Server running on socket://{socket_host}:{socket_port}')
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
@@ -115,7 +115,7 @@ def run_socket_server(**kwargs):
             while True:
                 data, addr = sock.recvfrom(socket_buffer_size)
                 logger_socket.info(f'Received from {addr}: {data.decode()}')
-                insert_data_into_mongo(data)
+                insert_data_into_mongo(data, mongo_client_params)
         except Exception as e:
             logger_socket.error(f'Server error: {e}')
         finally:
@@ -161,7 +161,7 @@ def main():
     http_thread.start()
 
     # Run Socket server thread
-    socket_thread = Thread(target=run_socket_server, kwargs=socket_server_params, name='socket server')
+    socket_thread = Thread(target=run_socket_server, args=(socket_server_params, mongo_client_params), name='socket server')
     socket_thread.start()
 
 
