@@ -3,10 +3,16 @@ import socket
 import logging
 import mimetypes
 from pathlib import Path
+from threading import Thread
+from pymongo.server_api import ServerApi
+from pymongo.mongo_client import MongoClient
 from urllib.parse import urlparse, unquote_plus
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from threading import Thread
 
+
+# MongoDB settings
+MONGO_URI = 'mongodb://localhost:27017'
+MONGO_DATABASE_NAME = 'messages'
 
 # HTTP server settings
 HTTP_HOST = 'localhost'
@@ -70,6 +76,13 @@ class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(f.read())
 
 
+def save_data_to_mongo(data):
+    client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
+    db = client.get_database(MONGO_DATABASE_NAME)
+    posts = db.posts
+    posts.insert_one(json.loads(data))
+
+
 def run_http_server(server_class=HTTPServer,
                handler_class=DemoHTTPRequestHandler,
                server_address=(HTTP_HOST, HTTP_PORT)):
@@ -87,19 +100,19 @@ def run_http_server(server_class=HTTPServer,
 
 def run_socket_server():
     print(f'Socket server running on {SOCKET_HOST}:{SOCKET_PORT}')
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((SOCKET_HOST, SOCKET_PORT))
-        s.listen()
-        while True:
-            conn, addr = s.accept()
-            with conn:
-                print(f'Connected by {addr}')
-                while True:
-                    data = conn.recv(BUFFER_SIZE)
-                    if not data:
-                        break
-                    print(data.decode())
-                    conn.sendall(data)
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        sock.bind((SOCKET_HOST, SOCKET_PORT))
+        sock.listen()
+        try:
+            while True:
+                data, addr = sock.recvfrom(BUFFER_SIZE)
+                logging.info(f'Received from {addr}: {data.decode()}')
+                save_data_to_mongo()
+        except Exception as e:
+            logging.error(f'Server error: {e}')
+        finally:
+            logging.info('Server stopped')
+            sock.close()
 
 
 if __name__ == '__main__':
