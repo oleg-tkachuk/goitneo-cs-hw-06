@@ -26,6 +26,7 @@ def insert_data_into_mongo(data, mongo_client_params):
 
         db = client.get_database(db_name)
         collection = db.get_collection(collection_name)
+        logger_mongo.info(f"Inserting data...")
         if isinstance(data, list):
             collection.insert_many(data)
         else:

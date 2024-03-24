@@ -115,7 +115,7 @@ def socket_server(socket_server_params, mongo_client_params):
         try:
             while True:
                 data, addr = sock.recvfrom(socket_buffer_size)
-                logger_socket.info(f'Received data from {addr}')
+                logger_socket.info(f'Received data from {addr[0]}:{addr[1]}')
                 insert_data_into_mongo(parse_data(data), mongo_client_params)
         except Exception as e:
             logger_socket.error(f'Server error: {e}')
@@ -180,6 +180,16 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print(f"\nGood bye!")
+        try:
+            sys.exit(130)
+        except SystemExit:
+            os._exit(130)
 
 
