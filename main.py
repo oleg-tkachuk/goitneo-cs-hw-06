@@ -140,27 +140,27 @@ def main():
     http_server_params = {
         'server_class': HTTPServer,
         'handler_class': wrapperDemoHTTPRequestHandler(
-            os.getenv('SOCKET_HOST'),
-            int(os.getenv('SOCKET_PORT', 5000))
+            os.getenv('SOCKET_BIND_ADDRESS'),
+            int(os.getenv('SOCKET_BIND_PORT'))
         ),
-        'server_address': (os.getenv('HTTP_HOST'),
-                           int(os.getenv('HTTP_PORT', 3000)))
+        'server_address': (os.getenv('HTTP_BIND_ADDRESS'),
+                           int(os.getenv('HTTP_BIND_PORT')))
     }
 
     # Socket server settings
     socket_server_params = {
-        'socket_host': os.getenv('SOCKET_HOST'),
-        'socket_port': int(os.getenv('SOCKET_PORT', 5000)),
+        'socket_host': os.getenv('SOCKET_BIND_ADDRESS'),
+        'socket_port': int(os.getenv('SOCKET_BIND_PORT')),
         'socket_buffer_size': int(os.getenv('SOCKET_BUFFER_SIZE', 1024))
     }
 
     # Mongo client settings
     mongo_client_params = {
-        'username': os.getenv('MONGO_INITDB_ROOT_USERNAME', 'root'),
+        'username': os.getenv('MONGO_INITDB_ROOT_USERNAME'),
         'password': os.getenv('MONGO_INITDB_ROOT_PASSWORD'),
-        'hostname': os.getenv('MONGO_HOST'),
-        'port': os.getenv('MONGO_PORT', 27017),
-        'auth_source': os.getenv('MONGO_AUTH_SOURCE', 'admin'),
+        'hostname': os.getenv('MONGO_HOSTNAME'),
+        'port': os.getenv('MONGO_BIND_PORT'),
+        'auth_source': os.getenv('MONGO_AUTH_SOURCE'),
         'db_name': os.getenv('MONGO_DATABASE_NAME'),
         'collection_name': os.getenv('MONGO_COLLECTION_NAME'),
         'server_api_version': os.getenv('MONGO_SERVER_API_VERSION', '1')
