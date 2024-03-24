@@ -5,7 +5,7 @@ services:
       - "3000:3000"
       - "5000:5000/udp"
     networks:
-      - servers_net
+      - common_net
     depends_on:
       - mongo
   mongo:
@@ -16,22 +16,20 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     ports:
       - "27017:27017"
+    networks:
+      - common_net
     volumes:
       - mongo_data:/data/db
-    networks:
-      - mongo_net
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongo ${MONGO_HOSTNAME}:${MONGO_PORT}/test --quiet
+      test: echo 'db.runCommand("ping").ok' | mongo ${MONGO_HOST}:${MONGO_PORT}/test --quiet
       interval: 5s
       timeout: 10s
       retries: 10
 
-networks:
-  mongo_net:
-    driver: bridge
-  servers_net:
-    driver: bridge
-
 volumes:
   mongo_data:
     driver: local
+
+networks:
+  common_net:
+    driver: bridge
