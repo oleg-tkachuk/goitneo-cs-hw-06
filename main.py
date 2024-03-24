@@ -77,8 +77,8 @@ def wrapperDemoHTTPRequestHandler(socket_host, socket_port):
 
 
 def http_server(**kwargs):
-    server_class = kwargs.get('server_class', HTTPServer)
-    handler_class = kwargs.get('handler_class', wrapperDemoHTTPRequestHandler)
+    server_class = kwargs.get('server_class')
+    handler_class = kwargs.get('handler_class')
     server_address = kwargs.get('server_address')
 
     httpd = server_class(server_address, handler_class)
