@@ -88,7 +88,7 @@ class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(f.read())
 
 
-def run_http_server(**kwargs):
+def http_server(**kwargs):
     server_class = kwargs.get('server_class', HTTPServer)
     handler_class = kwargs.get('handler_class', DemoHTTPRequestHandler)
     server_address = kwargs.get('server_address')
@@ -104,7 +104,7 @@ def run_http_server(**kwargs):
         httpd.server_close()
 
 
-def run_socket_server(socket_server_params, mongo_client_params):
+def socket_server(socket_server_params, mongo_client_params):
     socket_host = socket_server_params.get('socket_host')
     socket_port = socket_server_params.get('socket_port')
     socket_buffer_size = socket_server_params.get('socket_buffer_size')
@@ -115,13 +115,30 @@ def run_socket_server(socket_server_params, mongo_client_params):
         try:
             while True:
                 data, addr = sock.recvfrom(socket_buffer_size)
-                logger_socket.info(f'Received from {addr}: {data.decode()}')
+                logger_socket.info(f'Received data from {addr}')
                 insert_data_into_mongo(parse_data(data), mongo_client_params)
         except Exception as e:
             logger_socket.error(f'Server error: {e}')
         finally:
             logger_socket.info('Server stopped')
-            #sock.close()
+
+
+# Run HTTP server thread
+def run_http_server(http_server_params):
+    http_thread = Thread(target=http_server, 
+                         kwargs=http_server_params,
+                         name='http server')
+    http_thread.start()
+    return http_thread
+
+
+# Run Socket server thread
+def run_socket_server(socket_server_params, mongo_client_params):
+    socket_thread = Thread(target=socket_server,
+                           args=(socket_server_params, mongo_client_params), 
+                           name='socket server')
+    socket_thread.start()
+    return socket_thread
 
 
 def main():
@@ -155,17 +172,11 @@ def main():
         'server_api_version': os.getenv('MONGO_SERVER_API_VERSION', '1')
     }
 
-    # Run HTTP server thread
-    http_thread = Thread(target=run_http_server, 
-                         kwargs=http_server_params,
-                         name='http server')
-    http_thread.start()
+    http_thread = run_http_server(http_server_params)
+    socket_thread = run_socket_server(socket_server_params, mongo_client_params)
 
-    # Run Socket server thread
-    socket_thread = Thread(target=run_socket_server,
-                           args=(socket_server_params, mongo_client_params), 
-                           name='socket server')
-    socket_thread.start()
+    http_thread.join()
+    socket_thread.join()
 
 
 if __name__ == '__main__':

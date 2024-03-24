@@ -30,16 +30,16 @@ def insert_data_into_mongo(data, mongo_client_params):
             collection.insert_many(data)
         else:
             collection.insert_one(data)
-        print(f"Data inserted successfully.")
+        logger_mongo.info(f"Data inserted successfully.")
     except ConnectionFailure as e:
-        print(f"MongoDB connection failed: {e}")
+        logger_mongo.error(f"MongoDB connection failed: {e}")
     except PyMongoError as e:
-        print(f"An error has occurred in MongoDB: {e}")
+        logger_mongo.error(f"An error has occurred in MongoDB: {e}")
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        logger_mongo.error(f"An unexpected error occurred: {e}")
     finally:
         try:
             client.close()
-            print(f"MongoDB connection closed.")
+            logger_mongo.info(f"MongoDB connection closed.")
         except NameError:
             pass
