@@ -121,7 +121,7 @@ def run_socket_server(socket_server_params, mongo_client_params):
             logger_socket.error(f'Server error: {e}')
         finally:
             logger_socket.info('Server stopped')
-            sock.close()
+            #sock.close()
 
 
 def main():

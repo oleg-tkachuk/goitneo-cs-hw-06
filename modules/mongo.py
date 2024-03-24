@@ -2,7 +2,7 @@ try:
     from modules.logger import logger_mongo
     from pymongo.server_api import ServerApi
     from pymongo.mongo_client import MongoClient
-    from pymongo.errors import ConnectionFailure
+    from pymongo.errors import ConnectionFailure, PyMongoError
 except ModuleNotFoundError as e:
     print(f"Import error in the mongo module: {e}")
     exit(1)
@@ -27,16 +27,19 @@ def insert_data_into_mongo(data, mongo_client_params):
         db = client.get_database(db_name)
         collection = db.get_collection(collection_name)
         if isinstance(data, list):
-            result = collection.insert_many(data)
+            collection.insert_many(data)
         else:
-            result = collection.insert_one(data)
-        return result
-    except ConnectionFailure:
-        logger_mongo.error(f"MongoDB connection failed: {e}")
+            collection.insert_one(data)
+        print(f"Data inserted successfully.")
+    except ConnectionFailure as e:
+        print(f"MongoDB connection failed: {e}")
+    except PyMongoError as e:
+        print(f"An error has occurred in MongoDB: {e}")
     except Exception as e:
-        logger_mongo.error(f"An unexpected error occurred: {e}")
+        print(f"An unexpected error occurred: {e}")
     finally:
         try:
             client.close()
+            print(f"MongoDB connection closed.")
         except NameError:
             pass
