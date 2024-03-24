@@ -11,6 +11,11 @@ services:
       - mongo_data:/data/db
     networks:
       - mongo_net
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongo ${MONGO_HOSTNAME}:${MONGO_PORT}/test --quiet
+      interval: 5s
+      timeout: 10s
+      retries: 10
 
 networks:
   mongo_net:
