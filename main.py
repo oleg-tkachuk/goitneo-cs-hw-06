@@ -140,16 +140,16 @@ def main():
     http_server_params = {
         'server_class': HTTPServer,
         'handler_class': wrapperDemoHTTPRequestHandler(
-            os.getenv('SOCKET_HOST', 'localhost'),
+            os.getenv('SOCKET_HOST'),
             int(os.getenv('SOCKET_PORT', 5000))
         ),
-        'server_address': (os.getenv('HTTP_HOST', 'localhost'),
+        'server_address': (os.getenv('HTTP_HOST'),
                            int(os.getenv('HTTP_PORT', 3000)))
     }
 
     # Socket server settings
     socket_server_params = {
-        'socket_host': os.getenv('SOCKET_HOST', 'localhost'),
+        'socket_host': os.getenv('SOCKET_HOST'),
         'socket_port': int(os.getenv('SOCKET_PORT', 5000)),
         'socket_buffer_size': int(os.getenv('SOCKET_BUFFER_SIZE', 1024))
     }
@@ -158,7 +158,7 @@ def main():
     mongo_client_params = {
         'username': os.getenv('MONGO_INITDB_ROOT_USERNAME', 'root'),
         'password': os.getenv('MONGO_INITDB_ROOT_PASSWORD'),
-        'hostname': os.getenv('MONGO_HOST', 'localhost'),
+        'hostname': os.getenv('MONGO_HOST'),
         'port': os.getenv('MONGO_PORT', 27017),
         'auth_source': os.getenv('MONGO_AUTH_SOURCE', 'admin'),
         'db_name': os.getenv('MONGO_DATABASE_NAME'),
