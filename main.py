@@ -25,6 +25,7 @@ except ModuleNotFoundError as e:
 # HTTP server base directory
 BASE_DIR = Path(__file__).parent
 
+
 def wrapperDemoHTTPRequestHandler(socket_host, socket_port):
     class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -83,7 +84,8 @@ def http_server(**kwargs):
 
     httpd = server_class(server_address, handler_class)
     try:
-        logger_http.info(f'Server running on {server_address[0]}:{server_address[1]}')
+        logger_http.info(
+            f'Server running on {server_address[0]}:{server_address[1]}')
         httpd.serve_forever()
     except Exception as e:
         logger_http.error(f'Server error: {e}')
@@ -97,7 +99,8 @@ def socket_server(socket_server_params, mongo_client_params):
     socket_port = socket_server_params.get('socket_port')
     socket_buffer_size = socket_server_params.get('socket_buffer_size')
 
-    logger_socket.info(f'Server running on socket://{socket_host}:{socket_port}')
+    logger_socket.info(
+        f'Server running on socket://{socket_host}:{socket_port}')
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.bind((socket_host, socket_port))
         try:
@@ -113,7 +116,7 @@ def socket_server(socket_server_params, mongo_client_params):
 
 # Run HTTP server thread
 def run_http_server(http_server_params):
-    http_thread = Thread(target=http_server, 
+    http_thread = Thread(target=http_server,
                          kwargs=http_server_params,
                          name='http server')
     http_thread.start()
@@ -123,7 +126,7 @@ def run_http_server(http_server_params):
 # Run Socket server thread
 def run_socket_server(socket_server_params, mongo_client_params):
     socket_thread = Thread(target=socket_server,
-                           args=(socket_server_params, mongo_client_params), 
+                           args=(socket_server_params, mongo_client_params),
                            name='socket server')
     socket_thread.start()
     return socket_thread
@@ -182,5 +185,3 @@ if __name__ == '__main__':
             sys.exit(130)
         except SystemExit:
             os._exit(130)
-
-
