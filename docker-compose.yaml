@@ -4,6 +4,8 @@ services:
     ports:
       - "3000:3000"
       - "5000:5000/udp"
+    networks:
+      - servers_net
     depends_on:
       - mongo
   mongo:
@@ -26,6 +28,8 @@ services:
 
 networks:
   mongo_net:
+    driver: bridge
+  servers_net:
     driver: bridge
 
 volumes:
