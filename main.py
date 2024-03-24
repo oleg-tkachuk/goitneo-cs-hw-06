@@ -2,8 +2,8 @@ import os
 import sys
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-utils_subdir_path = os.path.join(current_dir, 'modules')
-sys.path.append(utils_subdir_path)
+modules_subdir_path = os.path.join(current_dir, 'modules')
+sys.path.append(modules_subdir_path)
 
 try:
     import socket
