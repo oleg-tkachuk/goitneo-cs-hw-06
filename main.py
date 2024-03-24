@@ -22,75 +22,63 @@ except ModuleNotFoundError as e:
     exit(1)
 
 
-# MongoDB settings
-MONGO_URI = 'mongodb://127.0.0.1:27017'
-MONGO_SERVER_API_VERSION = '1'
-MONGO_DATABASE_NAME = 'cs-homework-06'
-MONGO_COLLECTION_NAME = 'posts'
-
-# HTTP server settings
-HTTP_HOST = 'localhost'
-HTTP_PORT = 3000
 # HTTP server base directory
 BASE_DIR = Path(__file__).parent
 
-# Socket server settings
-SOCKET_HOST = 'localhost'
-SOCKET_PORT = 5000
-SOCKET_BUFFER_SIZE = 1024
+def wrapperDemoHTTPRequestHandler(socket_host, socket_port):
+    class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.directory = BASE_DIR
 
-class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.directory = BASE_DIR
+            router = urlparse(self.path).path
+            match router:
+                case '/':
+                    self.send_html(self.directory.joinpath('index.html'))
+                case '/message.html':
+                    self.send_html(self.directory.joinpath('message.html'))
+                case _:
+                    file = self.directory.joinpath(router[1:])
+                    if file.exists():
+                        self.send_static(file)
+                    else:
+                        self.send_html(
+                            self.directory.joinpath('error.html'), status=404)
 
-        router = urlparse(self.path).path
-        match router:
-            case '/':
-                self.send_html(self.directory.joinpath('index.html'))
-            case '/message.html':
-                self.send_html(self.directory.joinpath('message.html'))
-            case _:
-                file = self.directory.joinpath(router[1:])
-                if file.exists():
-                    self.send_static(file)
-                else:
-                    self.send_html(
-                        self.directory.joinpath('error.html'), status=404)
+        def do_POST(self):
+            size = self.headers.get('Content-Length')
+            data = self.rfile.read(int(size)).decode()
 
-    def do_POST(self):
-        size = self.headers.get('Content-Length')
-        data = self.rfile.read(int(size)).decode()
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            client_socket.sendto(data.encode(), (socket_host, socket_port))
+            client_socket.close()
 
-        client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        client_socket.sendto(data.encode(), (SOCKET_HOST, SOCKET_PORT))
-        client_socket.close()
+            self.send_response(302)
+            self.send_header('Location', '/')
+            self.end_headers()
 
-        self.send_response(302)
-        self.send_header('Location', '/')
-        self.end_headers()
+        def send_html(self, file_path, status=200):
+            self.send_response(status)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            with open(file_path, 'rb') as f:
+                self.wfile.write(f.read())
 
-    def send_html(self, file_path, status=200):
-        self.send_response(status)
-        self.send_header('Content-type', 'text/html')
-        self.end_headers()
-        with open(file_path, 'rb') as f:
-            self.wfile.write(f.read())
-
-    def send_static(self, file_path, status=200):
-        self.send_response(status)
-        mt = mimetypes.guess_type(file_path)
-        if mt:
-            self.send_header("Content-type", mt[0])
-        else:
-            self.send_header("Content-type", 'text/plain')
-        self.end_headers()
-        with open(file_path, 'rb') as f:
-            self.wfile.write(f.read())
+        def send_static(self, file_path, status=200):
+            self.send_response(status)
+            mt = mimetypes.guess_type(file_path)
+            if mt:
+                self.send_header("Content-type", mt[0])
+            else:
+                self.send_header("Content-type", 'text/plain')
+            self.end_headers()
+            with open(file_path, 'rb') as f:
+                self.wfile.write(f.read())
+    return DemoHTTPRequestHandler
 
 
 def http_server(**kwargs):
     server_class = kwargs.get('server_class', HTTPServer)
-    handler_class = kwargs.get('handler_class', DemoHTTPRequestHandler)
+    handler_class = kwargs.get('handler_class', wrapperDemoHTTPRequestHandler)
     server_address = kwargs.get('server_address')
 
     httpd = server_class(server_address, handler_class)
@@ -148,7 +136,10 @@ def main():
     # HTTP server settings
     http_server_params = {
         'server_class': HTTPServer,
-        'handler_class': DemoHTTPRequestHandler,
+        'handler_class': wrapperDemoHTTPRequestHandler(
+            os.getenv('SOCKET_HOST', 'localhost'),
+            int(os.getenv('SOCKET_PORT', 5000))
+        ),
         'server_address': (os.getenv('HTTP_HOST', 'localhost'),
                            int(os.getenv('HTTP_PORT', 3000)))
     }
