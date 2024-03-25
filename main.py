@@ -27,13 +27,14 @@ BASE_DIR = Path(__file__).parent
 
 
 class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
-    def __init__(self, *args, socket_host, socket_port, **kwargs):
+    def __init__(self, *args, socket_host, socket_port, base_directory, **kwargs):
         self.socket_host = socket_host
         self.socket_port = socket_port
+        self.directory = base_directory
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
-        self.directory = BASE_DIR
+        #self.directory = BASE_DIR
 
         router = urlparse(self.path).path
         match router:
@@ -54,7 +55,8 @@ class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
         data = self.rfile.read(int(size)).decode()
 
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        client_socket.sendto(data.encode(), (self.socket_host, self.socket_port))
+        client_socket.sendto(
+            data.encode(), (self.socket_host, self.socket_port))
         client_socket.close()
 
         self.send_response(302)
@@ -80,7 +82,6 @@ class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(f.read())
 
 
-
 def run_http_server(**kwargs):
     server_class = kwargs.get('server_class')
     server_bind_host = kwargs.get('server_bind_host')
@@ -89,10 +90,15 @@ def run_http_server(**kwargs):
     handler_class = kwargs.get('handler_class')
     handler_dst_host = kwargs.get('handler_dst_host')
     handler_dst_port = kwargs.get('handler_dst_port')
+    handler_directory = kwargs.get('handler_directory')
 
     httpd = server_class((server_bind_host, server_bind_port),
-            lambda *args, **kwargs:
-            handler_class(*args, socket_host=handler_dst_host, socket_port=handler_dst_port, **kwargs))
+                         lambda *args, **kwargs:
+                         handler_class(*args,
+                                       socket_host=handler_dst_host,
+                                       socket_port=handler_dst_port,
+                                       base_directory=handler_directory,
+                                       **kwargs))
 
     try:
         logger_http.info(
@@ -136,7 +142,8 @@ def main():
         'server_bind_port': int(os.getenv('HTTP_BIND_PORT')),
         'handler_class':    DemoHTTPRequestHandler,
         'handler_dst_host': os.getenv('SOCKET_BIND_HOST'),
-        'handler_dst_port': int(os.getenv('SOCKET_BIND_PORT'))
+        'handler_dst_port': int(os.getenv('SOCKET_BIND_PORT')),
+        'handler_directory': BASE_DIR
     }
 
     # Socket server settings
