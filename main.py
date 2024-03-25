@@ -34,9 +34,8 @@ class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
-        #self.directory = BASE_DIR
-
         router = urlparse(self.path).path
+
         match router:
             case '/':
                 self.send_html(self.directory.joinpath('index.html'))
@@ -165,15 +164,18 @@ def main():
         'server_api_version': os.getenv('MONGO_SERVER_API_VERSION', '1')
     }
 
+    # Creating processes
     http_prcess = Process(target=run_http_server, kwargs=http_server_params,
                           name='HTTP Server Process')
     socket_process = Process(target=run_socket_server,
                              args=(socket_server_params, mongo_client_params),
                              name='Socket Server Process')
 
+    # Launching processes
     http_prcess.start()
     socket_process.start()
 
+    # Waiting for processes to be completed
     http_prcess.join()
     socket_process.join()
 
