@@ -1,6 +1,7 @@
 services:
   hs-app-servers:
     build: .
+    container_name: hs-app-servers
     ports:
       - "3000:3000"
       - "5000:5000/udp"
@@ -10,7 +11,7 @@ services:
       - mongo-db-server
   mongo-db-server:
     image: mongo:latest
-    container_name: mongodb
+    container_name: mongo-db-server
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}

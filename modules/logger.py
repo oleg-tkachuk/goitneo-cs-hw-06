@@ -6,7 +6,7 @@ except ModuleNotFoundError as e:
 
 # Logging settings
 common_formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    '%(asctime)s - %(processName)s - %(name)s - %(levelname)s - %(message)s')
 
 # Logger for Socket server
 logger_socket = logging.getLogger('socket server')
