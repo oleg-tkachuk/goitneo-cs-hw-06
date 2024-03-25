@@ -9,14 +9,14 @@ try:
     import socket
     import mimetypes
     from pathlib import Path
-    from threading import Thread
     from dotenv import load_dotenv
     from urllib.parse import urlparse
+    from multiprocessing import Process, current_process
     from http.server import HTTPServer, BaseHTTPRequestHandler
-    from modules.cli import cli
-    from modules.parser import parse_data
-    from modules.mongo import insert_data_into_mongo
     from modules.logger import logger_http, logger_socket
+    from modules.mongo import insert_data_into_mongo
+    from modules.parser import parse_data
+    from modules.cli import cli
 except ModuleNotFoundError as e:
     print(f"Import error in the main module: {e}")
     exit(1)
@@ -77,7 +77,7 @@ def wrapperDemoHTTPRequestHandler(socket_host, socket_port):
     return DemoHTTPRequestHandler
 
 
-def http_server(**kwargs):
+def run_http_server(**kwargs):
     server_class = kwargs.get('server_class')
     handler_class = kwargs.get('handler_class')
     server_address = kwargs.get('server_address')
@@ -85,22 +85,22 @@ def http_server(**kwargs):
     httpd = server_class(server_address, handler_class)
     try:
         logger_http.info(
-            f'Server running on {server_address[0]}:{server_address[1]}')
+            f'{current_process().name} running on {server_address[0]}:{server_address[1]}')
         httpd.serve_forever()
     except Exception as e:
         logger_http.error(f'Server error: {e}')
     finally:
-        logger_http.info('Server stopped')
+        logger_http.info(f'{current_process().name} stopped')
         httpd.server_close()
 
 
-def socket_server(socket_server_params, mongo_client_params):
+def run_socket_server(socket_server_params, mongo_client_params):
     socket_host = socket_server_params.get('socket_host')
     socket_port = socket_server_params.get('socket_port')
     socket_buffer_size = socket_server_params.get('socket_buffer_size')
 
     logger_socket.info(
-        f'Server running on socket://{socket_host}:{socket_port}')
+        f'{current_process().name} running on socket://{socket_host}:{socket_port}')
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.bind((socket_host, socket_port))
         try:
@@ -111,25 +111,7 @@ def socket_server(socket_server_params, mongo_client_params):
         except Exception as e:
             logger_socket.error(f'Server error: {e}')
         finally:
-            logger_socket.info('Server stopped')
-
-
-# Run HTTP server thread
-def run_http_server(http_server_params):
-    http_thread = Thread(target=http_server,
-                         kwargs=http_server_params,
-                         name='http server')
-    http_thread.start()
-    return http_thread
-
-
-# Run Socket server thread
-def run_socket_server(socket_server_params, mongo_client_params):
-    socket_thread = Thread(target=socket_server,
-                           args=(socket_server_params, mongo_client_params),
-                           name='socket server')
-    socket_thread.start()
-    return socket_thread
+            logger_socket.info(f'{current_process().name} stopped')
 
 
 def main():
@@ -166,11 +148,17 @@ def main():
         'server_api_version': os.getenv('MONGO_SERVER_API_VERSION', '1')
     }
 
-    http_thread = run_http_server(http_server_params)
-    socket_thread = run_socket_server(socket_server_params, mongo_client_params)
+    http_prcess = Process(target=run_http_server, kwargs=http_server_params,
+                          name='HTTP Server Process')
+    socket_process = Process(target=run_socket_server,
+                             args=(socket_server_params, mongo_client_params),
+                             name='Socket Server Process')
 
-    http_thread.join()
-    socket_thread.join()
+    http_prcess.start()
+    socket_process.start()
+
+    http_prcess.join()
+    socket_process.join()
 
 
 if __name__ == '__main__':
