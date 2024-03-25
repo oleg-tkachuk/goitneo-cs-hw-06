@@ -26,66 +26,77 @@ except ModuleNotFoundError as e:
 BASE_DIR = Path(__file__).parent
 
 
-def wrapperDemoHTTPRequestHandler(socket_host, socket_port):
-    class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            self.directory = BASE_DIR
+class DemoHTTPRequestHandler(BaseHTTPRequestHandler):
+    def __init__(self, *args, socket_host, socket_port, **kwargs):
+        self.socket_host = socket_host
+        self.socket_port = socket_port
+        super().__init__(*args, **kwargs)
 
-            router = urlparse(self.path).path
-            match router:
-                case '/':
-                    self.send_html(self.directory.joinpath('index.html'))
-                case '/message.html':
-                    self.send_html(self.directory.joinpath('message.html'))
-                case _:
-                    file = self.directory.joinpath(router[1:])
-                    if file.exists():
-                        self.send_static(file)
-                    else:
-                        self.send_html(
-                            self.directory.joinpath('error.html'), status=404)
+    def do_GET(self):
+        self.directory = BASE_DIR
 
-        def do_POST(self):
-            size = self.headers.get('Content-Length')
-            data = self.rfile.read(int(size)).decode()
+        router = urlparse(self.path).path
+        match router:
+            case '/':
+                self.send_html(self.directory.joinpath('index.html'))
+            case '/message.html':
+                self.send_html(self.directory.joinpath('message.html'))
+            case _:
+                file = self.directory.joinpath(router[1:])
+                if file.exists():
+                    self.send_static(file)
+                else:
+                    self.send_html(
+                        self.directory.joinpath('error.html'), status=404)
 
-            client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            client_socket.sendto(data.encode(), (socket_host, socket_port))
-            client_socket.close()
+    def do_POST(self):
+        size = self.headers.get('Content-Length')
+        data = self.rfile.read(int(size)).decode()
 
-            self.send_response(302)
-            self.send_header('Location', '/')
-            self.end_headers()
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        client_socket.sendto(data.encode(), (self.socket_host, self.socket_port))
+        client_socket.close()
 
-        def send_html(self, file_path, status=200):
-            self.send_response(status)
-            self.send_header('Content-type', 'text/html')
-            self.end_headers()
-            with open(file_path, 'rb') as f:
-                self.wfile.write(f.read())
+        self.send_response(302)
+        self.send_header('Location', '/')
+        self.end_headers()
 
-        def send_static(self, file_path, status=200):
-            self.send_response(status)
-            mt = mimetypes.guess_type(file_path)
-            if mt:
-                self.send_header("Content-type", mt[0])
-            else:
-                self.send_header("Content-type", 'text/plain')
-            self.end_headers()
-            with open(file_path, 'rb') as f:
-                self.wfile.write(f.read())
-    return DemoHTTPRequestHandler
+    def send_html(self, file_path, status=200):
+        self.send_response(status)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        with open(file_path, 'rb') as f:
+            self.wfile.write(f.read())
+
+    def send_static(self, file_path, status=200):
+        self.send_response(status)
+        mt = mimetypes.guess_type(file_path)
+        if mt:
+            self.send_header("Content-type", mt[0])
+        else:
+            self.send_header("Content-type", 'text/plain')
+        self.end_headers()
+        with open(file_path, 'rb') as f:
+            self.wfile.write(f.read())
+
 
 
 def run_http_server(**kwargs):
     server_class = kwargs.get('server_class')
-    handler_class = kwargs.get('handler_class')
-    server_address = kwargs.get('server_address')
+    server_bind_host = kwargs.get('server_bind_host')
+    server_bind_port = kwargs.get('server_bind_port')
 
-    httpd = server_class(server_address, handler_class)
+    handler_class = kwargs.get('handler_class')
+    handler_dst_host = kwargs.get('handler_dst_host')
+    handler_dst_port = kwargs.get('handler_dst_port')
+
+    httpd = server_class((server_bind_host, server_bind_port),
+            lambda *args, **kwargs:
+            handler_class(*args, socket_host=handler_dst_host, socket_port=handler_dst_port, **kwargs))
+
     try:
         logger_http.info(
-            f'{current_process().name} running on {server_address[0]}:{server_address[1]}')
+            f'{current_process().name} running on {server_bind_host}:{server_bind_port}')
         httpd.serve_forever()
     except Exception as e:
         logger_http.error(f'Server error: {e}')
@@ -95,14 +106,14 @@ def run_http_server(**kwargs):
 
 
 def run_socket_server(socket_server_params, mongo_client_params):
-    socket_host = socket_server_params.get('socket_host')
-    socket_port = socket_server_params.get('socket_port')
+    socket_bind_host = socket_server_params.get('socket_bind_host')
+    socket_bind_port = socket_server_params.get('socket_bind_port')
     socket_buffer_size = socket_server_params.get('socket_buffer_size')
 
     logger_socket.info(
-        f'{current_process().name} running on socket://{socket_host}:{socket_port}')
+        f'{current_process().name} running on socket://{socket_bind_host}:{socket_bind_port}')
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-        sock.bind((socket_host, socket_port))
+        sock.bind((socket_bind_host, socket_bind_port))
         try:
             while True:
                 data, addr = sock.recvfrom(socket_buffer_size)
@@ -120,31 +131,30 @@ def main():
 
     # HTTP server settings
     http_server_params = {
-        'server_class': HTTPServer,
-        'handler_class': wrapperDemoHTTPRequestHandler(
-            os.getenv('SOCKET_BIND_ADDRESS'),
-            int(os.getenv('SOCKET_BIND_PORT'))
-        ),
-        'server_address': (os.getenv('HTTP_BIND_ADDRESS'),
-                           int(os.getenv('HTTP_BIND_PORT')))
+        'server_class':     HTTPServer,
+        'server_bind_host': os.getenv('HTTP_BIND_HOST'),
+        'server_bind_port': int(os.getenv('HTTP_BIND_PORT')),
+        'handler_class':    DemoHTTPRequestHandler,
+        'handler_dst_host': os.getenv('SOCKET_BIND_HOST'),
+        'handler_dst_port': int(os.getenv('SOCKET_BIND_PORT'))
     }
 
     # Socket server settings
     socket_server_params = {
-        'socket_host': os.getenv('SOCKET_BIND_ADDRESS'),
-        'socket_port': int(os.getenv('SOCKET_BIND_PORT')),
+        'socket_bind_host':   os.getenv('SOCKET_BIND_HOST'),
+        'socket_bind_port':   int(os.getenv('SOCKET_BIND_PORT')),
         'socket_buffer_size': int(os.getenv('SOCKET_BUFFER_SIZE', 1024))
     }
 
     # Mongo client settings
     mongo_client_params = {
-        'username': os.getenv('MONGO_INITDB_ROOT_USERNAME'),
-        'password': os.getenv('MONGO_INITDB_ROOT_PASSWORD'),
-        'hostname': os.getenv('MONGO_HOSTNAME'),
-        'port': os.getenv('MONGO_BIND_PORT'),
-        'auth_source': os.getenv('MONGO_AUTH_SOURCE'),
-        'db_name': os.getenv('MONGO_DATABASE_NAME'),
-        'collection_name': os.getenv('MONGO_COLLECTION_NAME'),
+        'username':           os.getenv('MONGO_INITDB_ROOT_USERNAME'),
+        'password':           os.getenv('MONGO_INITDB_ROOT_PASSWORD'),
+        'hostname':           os.getenv('MONGO_HOSTNAME'),
+        'port':               os.getenv('MONGO_BIND_PORT'),
+        'auth_source':        os.getenv('MONGO_AUTH_SOURCE'),
+        'db_name':            os.getenv('MONGO_DATABASE_NAME'),
+        'collection_name':    os.getenv('MONGO_COLLECTION_NAME'),
         'server_api_version': os.getenv('MONGO_SERVER_API_VERSION', '1')
     }
 
