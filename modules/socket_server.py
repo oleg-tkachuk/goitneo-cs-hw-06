@@ -2,7 +2,7 @@ try:
     import socket
     from modules.parser import parse_data
     from modules.logger import logger_socket
-    from modules.mongo import insert_data_into_mongo
+    from modules.mongo_client import insert_data_into_mongo
     from multiprocessing import current_process
 except ModuleNotFoundError as e:
     print(f"Import error in the socket_server module: {e}")
