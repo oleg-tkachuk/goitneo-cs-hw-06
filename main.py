@@ -29,12 +29,12 @@ def main():
 
     # HTTP server settings
     http_server_params = {
-        'server_class':     HTTPServer,
-        'server_bind_host': os.getenv('HTTP_BIND_HOST'),
-        'server_bind_port': int(os.getenv('HTTP_BIND_PORT')),
-        'handler_class':    DemoHTTPRequestHandler,
-        'handler_dst_host': os.getenv('SOCKET_BIND_HOST'),
-        'handler_dst_port': int(os.getenv('SOCKET_BIND_PORT')),
+        'server_class':      HTTPServer,
+        'server_bind_host':  os.getenv('HTTP_BIND_HOST'),
+        'server_bind_port':  int(os.getenv('HTTP_BIND_PORT')),
+        'handler_class':     DemoHTTPRequestHandler,
+        'handler_dst_host':  os.getenv('SOCKET_BIND_HOST'),
+        'handler_dst_port':  int(os.getenv('SOCKET_BIND_PORT')),
         'handler_directory': BASE_DIR
     }
 
